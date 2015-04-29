@@ -9,9 +9,14 @@
 import Foundation
 import UIKit
 
+enum TodoAlertViewType {
+    case Create, Update(Int), Remove(Int)
+}
+
 class TodoTableViewController : UIViewController {
     var todoDataManager = TodoDataManager.sharedInstance
     var tableView : UITableView?
+    var alertType : TodoAlertViewType?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -45,10 +50,14 @@ class TodoTableViewController : UIViewController {
     
     // todo 追加時の View
     func showCreateView() {
+        self.alertType = TodoAlertViewType.Create
         self.alertController = UIAlertController(title: "Todo追加🐱", message: nil, preferredStyle: .Alert)
         self.alertController!.addTextFieldWithConfigurationHandler({ textField in
             textField.delegate = self
         })
+        
+        let okAction = UIAlertAction(title: "OK", style: .Default, handler: nil)
+        self.alertController?.addAction(okAction)
         
         // !で確定させないと引数に渡せない
         self.presentViewController(self.alertController!, animated: true, completion: nil)
@@ -59,11 +68,25 @@ extension TodoTableViewController : UITextFieldDelegate {
     
     // textField への文字入力終了後の処理
     func textFieldShouldEndEditing(textField: UITextField) -> Bool {
-        let todo = TODO(title: textField.text)
-        if self.todoDataManager.create(todo) {
-            println("oh no")
-            textField.text = nil
-            self.tableView!.reloadData()
+        if let type = self.alertType {
+            println(type)
+            
+            switch type {
+            case .Create:
+                let todo = TODO(title: textField.text)
+                if self.todoDataManager.create(todo) {
+                    textField.text = nil
+                    self.tableView!.reloadData()
+                }
+            case let .Update(index):
+                let todo = TODO(title: textField.text)
+                if self.todoDataManager.update(todo, at:index) {
+                    textField.text = nil
+                    self.tableView!.reloadData()
+                }
+            case let .Remove(index):
+                break
+            }
         }
         
         // alert を閉じる
@@ -80,11 +103,42 @@ extension TodoTableViewController : UITableViewDataSource {
     func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
         let row = indexPath.row
         
-        let cell = UITableViewCell(style: .Default, reuseIdentifier: nil)
-        cell.textLabel?.text = "todo"
+        let cell = TodoTableViewCell(style: .Default, reuseIdentifier: nil)
+        cell.delegate = self
+        cell.textLabel?.text = self.todoDataManager[indexPath.row].title
+        cell.tag = indexPath.row
         
         return cell
     }
     
+}
+
+extension TodoTableViewController : TodoTableViewCellDelegate {
+    func updateTodo(index: Int) {
+        self.alertType = TodoAlertViewType.Update(index)
+        
+        self.alertController = UIAlertController(title: "編集😺", message: nil, preferredStyle: .Alert)
+        self.alertController!.addTextFieldWithConfigurationHandler({ textField in
+            textField.text = self.todoDataManager[index].title
+            textField.delegate = self
+        })
+        
+        // !で確定させないと引数に渡せない
+        self.presentViewController(self.alertController!, animated: true, completion: nil)
+    }
+    func removeTodo(index: Int) {
+        self.alertType = TodoAlertViewType.Update(index)
+        
+        self.alertController = UIAlertController(title: "削除😹", message: nil, preferredStyle: .Alert)
+        self.alertController!.addAction(UIAlertAction(title: "Delete", style: .Destructive) { action in
+            self.todoDataManager.remove(index)
+            self.tableView!.reloadData()
+        })
+        
+        self.alertController!.addAction(UIAlertAction(title: "Cancel", style: .Cancel, handler: nil))
+     
+        // !で確定させないと引数に渡せない
+        self.presentViewController(self.alertController!, animated: true, completion: nil)
+    }
 }
 
