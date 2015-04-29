@@ -73,7 +73,8 @@ final class TodoDataManager {
     
     class func validate(todo: TODO!) -> Bool {
         // sample にミスが
-        return todo != nil && todo.title != ""
+        //return todo != nil && todo.title != ""
+        return todo.title != ""
     }
     
     func create(todo: TODO!) -> Bool {
